@@ -166,7 +166,12 @@
 @media print {
   @page {
     size: A4;
-    margin: 18mm 16mm;
+    /* Margen cero a propósito. El navegador dibuja su encabezado y su pie
+       (fecha, título, URL, número de página) DENTRO del margen de página: si
+       no hay margen, no los dibuja. Es la única forma de sacarlos desde el
+       CSS, porque la casilla del diálogo de impresión no es accesible.
+       Los márgenes reales del documento los pone el padding de .cv-doc. */
+    margin: 0;
   }
 
   html,
@@ -184,11 +189,11 @@
     display: block;
   }
 
-  /* Los márgenes ya los pone @page: el documento va a sangre completa. */
+  /* Con @page sin margen, los márgenes del papel los pone este padding. */
   #print-root .cv-doc {
     width: auto;
     min-height: 0;
-    padding: 0;
+    padding: 18mm 16mm;
     box-shadow: none;
     border-radius: 0;
   }

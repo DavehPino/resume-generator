@@ -174,9 +174,9 @@ export function PreviewPanel() {
               Descargar PDF
             </Button>
             <p className="text-xs text-muted">
-              En el diálogo de impresión elige <strong className="text-ink">Guardar como PDF</strong>,
-              tamaño A4, márgenes por defecto, y <strong className="text-ink">desactiva</strong>{' '}
-              «Encabezados y pies de página».
+              En el diálogo elegí <strong className="text-ink">Guardar como PDF</strong>, tamaño A4,
+              y dejá los márgenes en <strong className="text-ink">Predeterminado</strong>. Así el PDF
+              sale sin la fecha, la URL ni el número de página que agrega el navegador.
             </p>
           </section>
 

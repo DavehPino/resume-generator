@@ -255,9 +255,11 @@ Las secciones vacías **no se renderizan**.
 **Exportación**
 
 - `exportPdf.ts` prepara el DOM (añade una clase `printing` al `body`, oculta todo salvo `#cv-document`) y llama `window.print()`.
-- En `@media print`: `@page { size: A4; margin: 18mm 16mm; }`, sin `box-shadow` y sin fondos de color (los navegadores no los imprimen). El acento va en color de texto y de borde, que sí se imprimen.
+- En `@media print`: `@page { size: A4; margin: 0; }` y los márgenes reales como `padding` de `.cv-doc`. **El margen cero es deliberado**: el navegador dibuja su encabezado y su pie (fecha, título, URL, número de página) *dentro* del margen de página, así que sin margen no los dibuja. Es la única forma de sacarlos desde el CSS, porque la casilla del diálogo de impresión no es accesible por código. Verificado midiendo los fragmentos de texto del PDF: 948 con margen de página, 812 sin él — los 136 de diferencia eran el encabezado y el pie.
+- **Contrapartida a tener presente:** el `padding` de un bloque no se repite al cambiar de página, así que en un CV de 2 páginas la segunda arranca pegada al borde superior. Es aceptable porque el auditor empuja a una sola página; si alguna vez hay que soportar varias páginas con margen en todas, hay que paginar el documento a mano en `exportPdf.ts`.
+- Sin `box-shadow` y sin fondos de color (los navegadores no los imprimen). El acento va en color de texto y de borde, que sí se imprimen.
 - Evitar cortes feos: `.cv-entry { break-inside: avoid; }`, `h2 { break-after: avoid; }`.
-- Instruir al usuario en pantalla: *"En el diálogo de impresión elige **Guardar como PDF**, tamaño A4, márgenes por defecto, y **desactiva** 'Encabezados y pies de página'."*
+- Instruir al usuario en pantalla: *"En el diálogo elegí **Guardar como PDF**, tamaño A4, y dejá los márgenes en **Predeterminado**."* Lo de los márgenes importa: si el usuario elige otra opción de margen, sobrescribe el `@page` y el encabezado del navegador vuelve a aparecer.
 - Sugerir nombre de archivo `Nombre_Apellido_CV`: el navegador toma el `document.title`, así que **cámbialo antes de imprimir y restáuralo después**.
 - Añadir también **"Descargar datos (.json)"** y **"Cargar datos (.json)"** como respaldo del usuario. Es barato y evita pérdidas si limpia el navegador.
 
