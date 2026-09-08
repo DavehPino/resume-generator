@@ -13,6 +13,8 @@ import { REVIEW_STEP, useWizardStore } from '@/store/wizardStore'
  *   ?demo=sinexp  el ejemplo sin experiencia laboral, para comprobar que el
  *                 documento se sostiene igual
  *   ?demo=ai      abre el modal de edición con IA ya desplegado
+ *   ?demo=manual  abre el editor manual de textos
+ *   ?demo=ats     deja que se abra sola la explicación de qué es un CV ATS
  *   ?demo=print   además deja el DOM listo para imprimir, lo que permite
  *                 validar el PDF con Chrome en headless
  *
@@ -33,6 +35,11 @@ export function applyDemoFromUrl(): void {
 
   const step = /^step(\d)$/.exec(demo)
   useWizardStore.getState().goTo(step ? Number(step[1]) : REVIEW_STEP)
+
+  // La explicación de ATS se abre sola la primera vez. Estorba al revisar
+  // cualquier otra cosa, así que se da por vista salvo que sea lo que se quiere
+  // mirar (`?demo=ats`).
+  if (demo !== 'ats') useWizardStore.getState().markAtsExplainerSeen()
 
   if (demo === 'print') {
     window.setTimeout(preparePrintDom, 300)

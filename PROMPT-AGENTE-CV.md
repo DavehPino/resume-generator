@@ -375,3 +375,20 @@ Selector de seis paletas en el paso de revisión (`lib/palettes.ts`). Cambia ún
 - Los acentos se aplican como variables CSS en línea (`--cv-accent`, `--cv-rule`) sobre el nodo raíz del documento, así viajan con el clon al imprimir.
 - **Todos los acentos superan 7:1 de contraste sobre blanco.** Es la condición que hace que el CV se siga leyendo impreso en blanco y negro; si agregás una paleta, respetala.
 - El campo `palette` vive dentro de `CvData`, así que se persiste y se exporta con el resto. Un respaldo anterior al selector se importa igual y toma Terracota.
+
+## 16. Explicación de qué es un CV ATS
+
+Modal que se abre solo la primera vez que alguien llega a la revisión, y después queda disponible desde la tarjeta de compatibilidad («¿Qué es un CV compatible con ATS?»). El estado «ya lo vio» se guarda en el store del wizard, así que no vuelve a interrumpir.
+
+Explica en tres pasos qué es un ATS, qué hace con el CV y por qué el documento se ve así, más una nota sobre que el mismo formato le sirve al lector humano.
+
+**Sin estadísticas.** Circulan cifras muy citadas sobre el porcentaje de CV descartados por filtros automáticos que no tienen una fuente seria detrás. Se explica el mecanismo, que es verificable, en vez de un número contundente que no se puede sostener. Si alguien quiere agregar datos duros acá, que traiga la fuente.
+
+## 17. Edición manual de textos
+
+Segundo botón de la tarjeta «Editar el contenido», junto al de IA. Abre un modal para corregir la redacción sin volver a recorrer el wizard.
+
+- Alcance idéntico al de la IA: perfil, logros, títulos de estudios y nombres de certificaciones. Fechas, empresas e instituciones se editan en su paso del wizard, donde están sus validaciones.
+- Se trabaja sobre un **borrador local** y se guarda al confirmar: cancelar deshace todo, igual que en el flujo de IA.
+- Los logros se editan en `textarea` de dos líneas, no en `input`: ocupan unos 140 caracteres y en una sola línea no se ve el final de lo que se está corrigiendo.
+- Al guardar, el auditor y la vista previa se recalculan solos porque leen del store.

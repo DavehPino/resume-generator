@@ -27,6 +27,9 @@ interface WizardState {
   furthest: number
   /** El usuario vino desde la revisión a corregir algo: al continuar, vuelve allí. */
   returningToReview: boolean
+  /** La explicación de qué es un CV ATS se muestra sola una única vez. */
+  atsExplainerSeen: boolean
+  markAtsExplainerSeen: () => void
 
   start: () => void
   resume: () => void
@@ -46,6 +49,9 @@ export const useWizardStore = create<WizardState>()(
       step: 1,
       furthest: 1,
       returningToReview: false,
+      atsExplainerSeen: false,
+
+      markAtsExplainerSeen: () => set({ atsExplainerSeen: true }),
 
       start: () => set({ view: 'wizard', step: 1, furthest: 1, returningToReview: false }),
       resume: () => set({ view: 'wizard', returningToReview: false }),

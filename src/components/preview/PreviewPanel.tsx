@@ -10,8 +10,9 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { AiEditCard } from '@/components/preview/AiEditCard'
+import { AtsExplainerModal } from '@/components/preview/AtsExplainerModal'
 import { CvDocument } from '@/components/preview/CvDocument'
+import { EditCard } from '@/components/preview/EditCard'
 import { PalettePicker } from '@/components/preview/PalettePicker'
 import { Button } from '@/components/ui/Button'
 import { runAudit } from '@/lib/audit'
@@ -37,7 +38,7 @@ export function PreviewPanel() {
   const data = useCvStore((state) => state.data)
   const loadCv = useCvStore((state) => state.loadCv)
   const reset = useCvStore((state) => state.reset)
-  const { back, goTo, resetWizard } = useWizardStore()
+  const { back, goTo, resetWizard, markAtsExplainerSeen } = useWizardStore()
 
   const containerRef = useRef<HTMLDivElement>(null)
   const docRef = useRef<HTMLDivElement>(null)
@@ -46,6 +47,18 @@ export function PreviewPanel() {
   const [scale, setScale] = useState(1)
   const [docHeight, setDocHeight] = useState(297 * MM)
   const [importError, setImportError] = useState<string | null>(null)
+  // La primera vez que alguien llega acá, se le explica por qué el CV se ve
+  // así. Después queda a mano en la tarjeta de compatibilidad, sin volver a
+  // interrumpir. Se lee del store al inicializar y no en un efecto: abrirlo no
+  // es sincronizar con nada externo, es el estado inicial de esta pantalla.
+  const [explainerOpen, setExplainerOpen] = useState(
+    () => !useWizardStore.getState().atsExplainerSeen,
+  )
+
+  const closeExplainer = () => {
+    setExplainerOpen(false)
+    markAtsExplainerSeen()
+  }
 
   const measure = useCallback(() => {
     const container = containerRef.current
@@ -106,9 +119,14 @@ export function PreviewPanel() {
         </div>
 
         <div className="order-1 flex min-w-0 flex-col gap-4 lg:order-2">
-          <AuditCard score={audit.score} passed={audit.passed} total={audit.total} />
+          <AuditCard
+            score={audit.score}
+            passed={audit.passed}
+            total={audit.total}
+            onExplain={() => setExplainerOpen(true)}
+          />
 
-          <AiEditCard />
+          <EditCard />
 
           {warnings.length > 0 && (
             <section className="flex flex-col gap-2 rounded-3xl bg-surface p-2 shadow-border">
@@ -245,11 +263,23 @@ export function PreviewPanel() {
           </div>
         </div>
       </div>
+
+      <AtsExplainerModal open={explainerOpen} onClose={closeExplainer} />
     </div>
   )
 }
 
-function AuditCard({ score, passed, total }: { score: number; passed: number; total: number }) {
+function AuditCard({
+  score,
+  passed,
+  total,
+  onExplain,
+}: {
+  score: number
+  passed: number
+  total: number
+  onExplain: () => void
+}) {
   const strong = score >= 80
   return (
     <section className="flex flex-col gap-3 rounded-3xl bg-surface p-4 shadow-border">
@@ -279,6 +309,9 @@ function AuditCard({ score, passed, total }: { score: number; passed: number; to
         </span>
         <span>{strong ? '· listo para postular' : '· revisa los avisos de abajo'}</span>
       </p>
+      <Button variant="quiet" size="sm" className="self-start px-0" onClick={onExplain}>
+        ¿Qué es un CV compatible con ATS?
+      </Button>
     </section>
   )
 }

@@ -30,7 +30,7 @@ export interface AuditResult {
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i
 /** Al menos 8 dígitos, permitiendo +, espacios, guiones y paréntesis. */
 const PHONE_PATTERN = /^\+?[\d\s()-]{8,}$/
-const MAX_BULLET_LENGTH = 140
+export const MAX_BULLET_LENGTH = 140
 
 export const PROFILE_MIN = 200
 export const PROFILE_MAX = 600
