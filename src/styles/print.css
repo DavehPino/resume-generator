@@ -1,0 +1,195 @@
+/* ------------------------------------------------------------------
+   Hoja de estilos del DOCUMENTO DEL CV.
+
+   Deliberadamente separada de la paleta de la app y escrita en CSS plano
+   (sin utilidades de Tailwind) para que el nodo se pueda clonar e imprimir
+   tal cual. Reglas innegociables (PROMPT-AGENTE-CV.md §8):
+
+     - Una sola columna de contenido. Sin tablas, sin barras laterales,
+       sin flotados. El orden del DOM es el orden de lectura del PDF.
+     - Sin imágenes, iconos, emojis ni barras de nivel.
+     - Arial/Helvetica. Sin fuentes web.
+     - Texto real y seleccionable: se imprime el DOM, nunca una imagen.
+
+   SOBRE EL COLOR
+   El documento lleva un acento terracota en títulos de sección, puesto,
+   empresas y viñetas. Dos condiciones que hay que mantener al tocarlo:
+
+     1. El color va SIEMPRE en texto y bordes, nunca en fondos. Los
+        navegadores no imprimen fondos por defecto, así que un bloque de
+        color se vería en pantalla y desaparecería en el PDF.
+     2. El acento es oscuro a propósito (#9a3412): en escala de grises
+        cae a un gris oscuro legible, así que el CV sigue funcionando
+        impreso en blanco y negro.
+
+   El texto del contenido se mantiene casi negro: el color distingue la
+   estructura, no compite con lo que se lee.
+
+   `lib/exportPdf.ts` clona #cv-document dentro de #print-root (hijo directo
+   de <body>) y marca el body con la clase `printing`.
+   ------------------------------------------------------------------ */
+
+.cv-doc {
+  /* A4 exacto: lo que se ve en pantalla es lo que sale impreso. */
+  width: 210mm;
+  min-height: 297mm;
+  padding: 18mm 16mm;
+  box-sizing: border-box;
+  background: #fff;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.25;
+  orphans: 2;
+  widows: 2;
+
+  --cv-accent: #9a3412;
+  --cv-rule: #d8b7a6;
+  --cv-ink: #111827;
+  --cv-soft: #4b5563;
+
+  color: var(--cv-ink);
+}
+
+/* Bloque de identidad y contacto. Es un <div> dentro del cuerpo, no un
+   encabezado de página: los ATS no leen headers ni footers. */
+.cv-head {
+  padding-bottom: 7pt;
+  border-bottom: 1pt solid var(--cv-accent);
+}
+
+.cv-name {
+  font-size: 20pt;
+  font-weight: bold;
+  line-height: 1.1;
+  letter-spacing: 0.3pt;
+}
+
+.cv-role {
+  margin-top: 2pt;
+  font-size: 12pt;
+  color: var(--cv-accent);
+}
+
+.cv-contact {
+  margin-top: 5pt;
+  font-size: 9.5pt;
+  line-height: 1.4;
+  color: var(--cv-soft);
+}
+
+.cv-section {
+  margin-top: 12pt;
+}
+
+.cv-section h2 {
+  font-size: 11pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.9pt;
+  color: var(--cv-accent);
+  border-bottom: 0.75pt solid var(--cv-rule);
+  padding-bottom: 2.5pt;
+  margin-bottom: 6pt;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.cv-entry {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.cv-entry + .cv-entry {
+  margin-top: 8pt;
+}
+
+/* Cargo a la izquierda y fechas a la derecha, en una sola línea.
+   Es una línea, no una columna: en el DOM el cargo va antes que la fecha,
+   así que el PDF y cualquier parser las leen en ese orden. */
+.cv-entry-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10pt;
+}
+
+.cv-entry h3 {
+  font-size: 11pt;
+  font-weight: bold;
+}
+
+.cv-org {
+  font-weight: normal;
+  color: var(--cv-accent);
+}
+
+.cv-dates {
+  flex: 0 0 auto;
+  font-size: 9.5pt;
+  color: var(--cv-soft);
+  white-space: nowrap;
+}
+
+.cv-meta {
+  margin-top: 1pt;
+  font-size: 9.5pt;
+  color: var(--cv-soft);
+}
+
+.cv-doc ul {
+  list-style: disc outside;
+  margin-top: 3pt;
+  padding-left: 14pt;
+}
+
+.cv-doc li {
+  margin-top: 2.5pt;
+}
+
+.cv-doc li::marker {
+  color: var(--cv-accent);
+}
+
+.cv-label {
+  font-weight: bold;
+}
+
+.cv-line + .cv-line {
+  margin-top: 3pt;
+}
+
+/* El contenedor de impresión solo existe mientras dura window.print(). */
+#print-root {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm 16mm;
+  }
+
+  html,
+  body {
+    background: #fff;
+    height: auto;
+  }
+
+  /* Solo el clon del CV llega al papel. */
+  body.printing > *:not(#print-root) {
+    display: none !important;
+  }
+
+  body.printing #print-root {
+    display: block;
+  }
+
+  /* Los márgenes ya los pone @page: el documento va a sangre completa. */
+  #print-root .cv-doc {
+    width: auto;
+    min-height: 0;
+    padding: 0;
+    box-shadow: none;
+    border-radius: 0;
+  }
+}
