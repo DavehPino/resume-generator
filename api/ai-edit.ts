@@ -11,6 +11,8 @@
  * cuenta. Solo acepta esta forma de payload.
  */
 
+import type { IncomingMessage, ServerResponse } from 'node:http'
+
 export const maxDuration = 60
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
@@ -69,9 +71,44 @@ FORMATO DE RESPUESTA: devolvé únicamente un objeto JSON con esta forma:
 - En "experience", usá exactamente los mismos id que recibiste y devolvé la lista COMPLETA de logros de ese puesto, no solo los nuevos.
 - En "skills", devolvé las listas completas ya ordenadas, no solo lo que agregás.`
 
-function clientIp(request: Request): string {
-  const forwarded = request.headers.get('x-forwarded-for')
-  return forwarded?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'desconocida'
+/**
+ * Vercel invoca las funciones de Node con la firma clásica `(req, res)`, no
+ * con `Request`/`Response` del estándar web. Por eso `req.headers` es un objeto
+ * plano y hay que leer el cuerpo del stream a mano.
+ */
+type ApiRequest = IncomingMessage & { body?: unknown }
+type ApiResponse = ServerResponse
+
+function header(request: ApiRequest, name: string): string {
+  const value = request.headers[name]
+  return Array.isArray(value) ? (value[0] ?? '') : (value ?? '')
+}
+
+function clientIp(request: ApiRequest): string {
+  const forwarded = header(request, 'x-forwarded-for')
+  return forwarded.split(',')[0]?.trim() || header(request, 'x-real-ip') || 'desconocida'
+}
+
+class BodyTooLarge extends Error {}
+
+/**
+ * Vercel puede entregar el cuerpo ya parseado en `req.body`. Si no lo hace, se
+ * lee del stream cortando en cuanto supera el máximo, para no cargar en memoria
+ * un envío enorme.
+ */
+async function readBody(request: ApiRequest): Promise<string> {
+  if (typeof request.body === 'string') return request.body
+  if (request.body && typeof request.body === 'object') return JSON.stringify(request.body)
+
+  const chunks: Buffer[] = []
+  let size = 0
+  for await (const chunk of request) {
+    const buffer = chunk as Buffer
+    size += buffer.length
+    if (size > MAX_BODY_BYTES) throw new BodyTooLarge()
+    chunks.push(buffer)
+  }
+  return Buffer.concat(chunks).toString('utf8')
 }
 
 function rateLimited(ip: string): boolean {
@@ -88,15 +125,14 @@ function rateLimited(ip: string): boolean {
   return false
 }
 
-function json(body: unknown, status: number): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json; charset=utf-8' },
-  })
+function json(response: ApiResponse, body: unknown, status: number): void {
+  response.statusCode = status
+  response.setHeader('content-type', 'application/json; charset=utf-8')
+  response.end(JSON.stringify(body))
 }
 
-function fail(error: string, status: number): Response {
-  return json({ ok: false, error }, status)
+function fail(response: ApiResponse, error: string, status: number): void {
+  json(response, { ok: false, error }, status)
 }
 
 /** Recorta el CV a lo que el modelo necesita ver y a un tamaño acotado. */
@@ -134,44 +170,59 @@ function sanitizeCv(raw: unknown): EditableCv | null {
   }
 }
 
-export default async function handler(request: Request): Promise<Response> {
-  if (request.method !== 'POST') return fail('Método no permitido.', 405)
+export default async function handler(
+  request: ApiRequest,
+  response: ApiResponse,
+): Promise<void> {
+  if (request.method !== 'POST') return fail(response, 'Método no permitido.', 405)
 
   const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) {
-    return fail('El servidor no tiene configurada la clave de OpenRouter.', 500)
+    return fail(response, 'El servidor no tiene configurada la clave de OpenRouter.', 500)
   }
 
   if (rateLimited(clientIp(request))) {
-    return fail('Hiciste muchas consultas seguidas. Esperá unos minutos y volvé a intentar.', 429)
+    return fail(
+      response,
+      'Hiciste muchas consultas seguidas. Esperá unos minutos y volvé a intentar.',
+      429,
+    )
   }
 
-  const rawBody = await request.text()
+  let rawBody: string
+  try {
+    rawBody = await readBody(request)
+  } catch (error) {
+    if (error instanceof BodyTooLarge) {
+      return fail(response, 'El CV es demasiado largo para procesarlo.', 413)
+    }
+    return fail(response, 'No se pudo leer la petición.', 400)
+  }
   if (rawBody.length > MAX_BODY_BYTES) {
-    return fail('El CV es demasiado largo para procesarlo.', 413)
+    return fail(response, 'El CV es demasiado largo para procesarlo.', 413)
   }
 
   let payload: { instruction?: unknown; cv?: unknown }
   try {
     payload = JSON.parse(rawBody)
   } catch {
-    return fail('Petición inválida.', 400)
+    return fail(response, 'Petición inválida.', 400)
   }
 
   const instruction =
     typeof payload.instruction === 'string' ? payload.instruction.trim().slice(0, MAX_INSTRUCTION) : ''
   if (instruction.length < 4) {
-    return fail('Escribí qué querés que cambie.', 400)
+    return fail(response, 'Escribí qué querés que cambie.', 400)
   }
 
   const cv = sanitizeCv(payload.cv)
-  if (!cv) return fail('Petición inválida.', 400)
+  if (!cv) return fail(response, 'Petición inválida.', 400)
 
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 50_000)
 
   try {
-    const response = await fetch(OPENROUTER_URL, {
+    const aiResponse = await fetch(OPENROUTER_URL, {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -195,33 +246,36 @@ export default async function handler(request: Request): Promise<Response> {
       }),
     })
 
-    if (!response.ok) {
-      const detail = await response.text()
-      console.error('OpenRouter respondió', response.status, detail.slice(0, 500))
-      if (response.status === 429) {
-        return fail('El servicio de IA está saturado. Probá de nuevo en un minuto.', 429)
+    if (!aiResponse.ok) {
+      const detail = await aiResponse.text()
+      console.error('OpenRouter respondió', aiResponse.status, detail.slice(0, 500))
+      if (aiResponse.status === 429) {
+        return fail(response, 'El servicio de IA está saturado. Probá de nuevo en un minuto.', 429)
       }
-      return fail('No se pudo contactar al servicio de IA. Probá de nuevo.', 502)
+      return fail(response, 'No se pudo contactar al servicio de IA. Probá de nuevo.', 502)
     }
 
-    const completion = (await response.json()) as {
+    const completion = (await aiResponse.json()) as {
       choices?: { message?: { content?: string } }[]
     }
     const content = completion.choices?.[0]?.message?.content
-    if (!content) return fail('La IA devolvió una respuesta vacía. Probá de nuevo.', 502)
+    if (!content) {
+      return fail(response, 'La IA devolvió una respuesta vacía. Probá de nuevo.', 502)
+    }
 
     let result: unknown
     try {
       result = JSON.parse(content)
     } catch {
-      return fail('La IA devolvió una respuesta que no se pudo leer. Probá de nuevo.', 502)
+      return fail(response, 'La IA devolvió una respuesta que no se pudo leer. Probá de nuevo.', 502)
     }
 
-    return json({ ok: true, result }, 200)
+    return json(response, { ok: true, result }, 200)
   } catch (error) {
     const aborted = error instanceof Error && error.name === 'AbortError'
     console.error('Fallo al llamar a OpenRouter:', error)
     return fail(
+      response,
       aborted ? 'La IA tardó demasiado en responder. Probá de nuevo.' : 'No se pudo completar la edición.',
       aborted ? 504 : 502,
     )
