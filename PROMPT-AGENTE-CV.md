@@ -357,7 +357,9 @@ Añadido después del brief original. Está en el paso 9, entre la tarjeta de co
 **Reglas del asistente, no negociables:**
 
 - **No inventa nada**: ni empleos, ni fechas, ni métricas, ni herramientas. Si se le pide, se niega y lo explica. Un CV con datos falsos le cuesta el puesto a la persona.
-- Solo puede tocar perfil profesional, logros de experiencia y habilidades. Nunca nombre, contacto, fechas ni empresas.
+- Solo puede tocar el perfil profesional, los logros de experiencia, las habilidades, el título de cada estudio y el nombre de cada certificación. Al reformular un título puede adaptar la nomenclatura ("Enseñanza media completa" → "Secundario completo"), pero no agregar orientaciones ni niveles que la persona no haya escrito.
+- Nunca toca nombre, contacto, fechas, empresas, instituciones ni niveles educativos: esos campos ni siquiera existen en el esquema de respuesta, así que la restricción la impone el código, no solo el prompt.
+- Instituciones y niveles sí viajan al modelo, pero como contexto de solo lectura: sin verlos no puede reformular un título con criterio.
 - Aplica las mismas reglas ATS del §8: verbo de acción al inicio, 140 caracteres por logro, perfil de 200–600.
 
 **Nada se aplica solo.** La respuesta se compara con el CV actual (`diffProposal`) y se muestra un antes/después por campo, con una casilla por cambio. El usuario aprueba lo que quiere.

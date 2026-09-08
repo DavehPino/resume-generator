@@ -20,6 +20,8 @@ const aiResultSchema = z.object({
   experience: z
     .array(z.object({ id: z.string(), bullets: z.array(z.string()) }))
     .nullish(),
+  education: z.array(z.object({ id: z.string(), title: z.string() })).nullish(),
+  certifications: z.array(z.object({ id: z.string(), name: z.string() })).nullish(),
   skills: z
     .object({ technical: z.array(z.string()), soft: z.array(z.string()) })
     .nullish(),
@@ -29,7 +31,12 @@ export type AiResult = z.infer<typeof aiResultSchema>
 
 export type AiEditResponse = { ok: true; result: AiResult } | { ok: false; error: string }
 
-/** Solo se envían los campos que la IA puede tocar. */
+/**
+ * Se envían las secciones de texto que la IA puede reformular. Nombre,
+ * contacto y fechas quedan fuera: no aportan nada y no tiene sentido
+ * exponerlos. Instituciones y niveles sí viajan, pero solo como contexto: el
+ * esquema de respuesta no tiene campo para devolverlos cambiados.
+ */
 function editablePayload(cv: CvData) {
   return {
     targetRole: cv.personal.targetRole,
@@ -39,6 +46,17 @@ function editablePayload(cv: CvData) {
       role: item.role,
       company: item.company,
       bullets: item.bullets,
+    })),
+    education: cv.education.map((item) => ({
+      id: item.id,
+      level: item.level,
+      title: item.title,
+      institution: item.institution,
+    })),
+    certifications: cv.certifications.map((item) => ({
+      id: item.id,
+      name: item.name,
+      issuer: item.issuer,
     })),
     skills: cv.skills,
   }
@@ -122,6 +140,30 @@ export function diffProposal(cv: CvData, result: AiResult): AiChange[] {
       label: `Logros · ${current.role || current.company}`,
       before,
       after,
+    })
+  }
+
+  for (const proposal of result.education ?? []) {
+    const current = cv.education.find((item) => item.id === proposal.id)
+    const title = proposal.title?.trim()
+    if (!current || !title || title === current.title.trim()) continue
+    changes.push({
+      key: `education:${proposal.id}`,
+      label: `Título · ${current.institution || current.level}`,
+      before: [current.title],
+      after: [title],
+    })
+  }
+
+  for (const proposal of result.certifications ?? []) {
+    const current = cv.certifications.find((item) => item.id === proposal.id)
+    const name = proposal.name?.trim()
+    if (!current || !name || name === current.name.trim()) continue
+    changes.push({
+      key: `certification:${proposal.id}`,
+      label: `Certificación · ${current.issuer}`,
+      before: [current.name],
+      after: [name],
     })
   }
 

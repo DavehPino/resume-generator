@@ -38,6 +38,8 @@ interface EditableCv {
   targetRole: string
   profile: string
   experience: { id: string; role: string; company: string; bullets: string[] }[]
+  education: { id: string; level: string; title: string; institution: string }[]
+  certifications: { id: string; name: string; issuer: string }[]
   skills: { technical: string[]; soft: string[] }
 }
 
@@ -50,6 +52,14 @@ REGLA MÁS IMPORTANTE: no inventes NADA.
 - Si la instrucción te pide inventar o exagerar, NO lo hagas: devolvé los campos sin cambios y explicá en "summary" por qué no lo hiciste. Un CV con datos falsos le cuesta el trabajo a la persona.
 
 Tu tarea es reescribir y mejorar el texto que ya existe: más claro, más concreto y con las palabras clave que busca un filtro.
+
+QUÉ PODÉS EDITAR:
+- El perfil profesional.
+- Los logros de cada experiencia.
+- Las habilidades.
+- El título de cada estudio y el nombre de cada certificación. Podés reformularlos para que usen la nomenclatura del país (por ejemplo "Enseñanza media completa" -> "Secundario completo"), pero NO podés agregar orientaciones, especializaciones, menciones ni niveles que la persona no haya escrito.
+
+QUÉ NO PODÉS TOCAR: nombre, datos de contacto, fechas, empresas, instituciones y el nivel educativo. Esos campos ni siquiera están en el formato de respuesta.
 
 REGLAS DE ESTILO ATS:
 - Cada logro empieza con un verbo de acción en pasado: "Atendí", "Gestioné", "Resolví", "Coordiné", "Superé".
@@ -64,11 +74,14 @@ FORMATO DE RESPUESTA: devolvé únicamente un objeto JSON con esta forma:
   "summary": "una o dos frases, en segunda persona, contando qué cambiaste y por qué",
   "profile": "el perfil reescrito, o null si no lo tocaste",
   "experience": [{ "id": "el id exacto que recibiste", "bullets": ["logro 1", "logro 2"] }],
+  "education": [{ "id": "el id exacto que recibiste", "title": "el título reformulado" }],
+  "certifications": [{ "id": "el id exacto que recibiste", "name": "el nombre reformulado" }],
   "skills": { "technical": ["..."], "soft": ["..."] }
 }
 
-- Incluí SOLO los campos que realmente cambiaste. Lo que no cambies va en null (o en una lista vacía, para "experience").
-- En "experience", usá exactamente los mismos id que recibiste y devolvé la lista COMPLETA de logros de ese puesto, no solo los nuevos.
+- Incluí SOLO los campos que realmente cambiaste. Lo que no cambies va en null (o en una lista vacía, para las listas).
+- En "experience", "education" y "certifications", usá exactamente los mismos id que recibiste.
+- En "experience", devolvé la lista COMPLETA de logros de ese puesto, no solo los nuevos.
 - En "skills", devolvé las listas completas ya ordenadas, no solo lo que agregás.`
 
 /**
@@ -160,6 +173,27 @@ function sanitizeCv(raw: unknown): EditableCv | null {
             role: text(item.role, 120),
             company: text(item.company, 120),
             bullets: list(item.bullets, MAX_BULLETS_PER_JOB, 300),
+          }
+        })
+      : [],
+    education: Array.isArray(cv.education)
+      ? cv.education.slice(0, 10).map((entry) => {
+          const item = entry as Record<string, unknown>
+          return {
+            id: text(item.id, 64),
+            level: text(item.level, 60),
+            title: text(item.title, 200),
+            institution: text(item.institution, 200),
+          }
+        })
+      : [],
+    certifications: Array.isArray(cv.certifications)
+      ? cv.certifications.slice(0, 15).map((entry) => {
+          const item = entry as Record<string, unknown>
+          return {
+            id: text(item.id, 64),
+            name: text(item.name, 200),
+            issuer: text(item.issuer, 200),
           }
         })
       : [],

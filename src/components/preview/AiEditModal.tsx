@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, Loader2, Sparkles } from 'lucide-react'
+import { AlertTriangle, Check, Info, Loader2, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/Button'
@@ -19,13 +19,16 @@ const QUICK_PROMPTS = [
 type Phase =
   | { step: 'writing' }
   | { step: 'thinking' }
-  | { step: 'error'; message: string }
+  /** `notice` es la IA respondiendo que no cambió nada; no es un fallo. */
+  | { step: 'message'; text: string; tone: 'error' | 'notice' }
   | { step: 'review'; summary: string; changes: AiChange[] }
 
 export function AiEditModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const cv = useCvStore((state) => state.data)
   const setProfile = useCvStore((state) => state.setProfile)
   const updateExperience = useCvStore((state) => state.updateExperience)
+  const updateEducation = useCvStore((state) => state.updateEducation)
+  const updateCertification = useCvStore((state) => state.updateCertification)
   const setSkills = useCvStore((state) => state.setSkills)
 
   const [instruction, setInstruction] = useState('')
@@ -52,15 +55,16 @@ export function AiEditModal({ open, onClose }: { open: boolean; onClose: () => v
 
     const response = await requestAiEdit(text, cv)
     if (!response.ok) {
-      setPhase({ step: 'error', message: response.error })
+      setPhase({ step: 'message', tone: 'error', text: response.error })
       return
     }
 
     const changes = diffProposal(cv, response.result)
     if (changes.length === 0) {
       setPhase({
-        step: 'error',
-        message:
+        step: 'message',
+        tone: 'notice',
+        text:
           response.result.summary ||
           'La IA no propuso ningún cambio. Probá pidiéndole algo más concreto.',
       })
@@ -88,6 +92,22 @@ export function AiEditModal({ open, onClose }: { open: boolean; onClose: () => v
         ...rest,
         bullets: entry.bullets.map((bullet) => bullet.trim()).filter(Boolean),
       })
+    }
+
+    for (const entry of proposal.education ?? []) {
+      if (!accepted.has(`education:${entry.id}`)) continue
+      const current = cv.education.find((item) => item.id === entry.id)
+      if (!current) continue
+      const { id: _id, ...rest } = current
+      updateEducation(entry.id, { ...rest, title: entry.title.trim() })
+    }
+
+    for (const entry of proposal.certifications ?? []) {
+      if (!accepted.has(`certification:${entry.id}`)) continue
+      const current = cv.certifications.find((item) => item.id === entry.id)
+      if (!current) continue
+      const { id: _id, ...rest } = current
+      updateCertification(entry.id, { ...rest, name: entry.name.trim() })
     }
 
     if (proposal.skills) {
@@ -161,14 +181,18 @@ export function AiEditModal({ open, onClose }: { open: boolean; onClose: () => v
             </div>
           </div>
 
-          {phase.step === 'error' && (
+          {phase.step === 'message' && (
             <p className="flex items-start gap-2 rounded-2xl px-3 py-3 text-sm text-ink shadow-border">
-              <AlertTriangle
-                aria-hidden
-                strokeWidth={2}
-                className="mt-0.5 size-4 shrink-0 text-danger"
-              />
-              {phase.message}
+              {phase.tone === 'error' ? (
+                <AlertTriangle
+                  aria-hidden
+                  strokeWidth={2}
+                  className="mt-0.5 size-4 shrink-0 text-danger"
+                />
+              ) : (
+                <Info aria-hidden strokeWidth={2} className="mt-0.5 size-4 shrink-0 text-muted" />
+              )}
+              {phase.text}
             </p>
           )}
 
