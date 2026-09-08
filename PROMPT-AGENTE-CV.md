@@ -388,7 +388,10 @@ Explica en tres pasos qué es un ATS, qué hace con el CV y por qué el document
 
 Segundo botón de la tarjeta «Editar el contenido», junto al de IA. Abre un modal para corregir la redacción sin volver a recorrer el wizard.
 
-- Alcance idéntico al de la IA: perfil, logros, títulos de estudios y nombres de certificaciones. Fechas, empresas e instituciones se editan en su paso del wizard, donde están sus validaciones.
+- **Regla de alcance: acá se edita todo el texto del CV.** Puesto objetivo, perfil, cargos, empresas, logros, títulos e instituciones de estudios, certificaciones, idiomas y habilidades. Es un alcance más amplio que el de la IA a propósito: la IA reformula, la persona corrige.
+- Queda fuera solo lo que no es texto libre: las **fechas** (necesitan la máscara MM/AAAA y la validación de orden) y las **opciones cerradas** (nivel de estudios, disponibilidad), que tienen sus controles en el wizard.
+- Las habilidades se editan como lista separada por comas: son cadenas cortas y así se reordenan y renombran más rápido que con chips.
+- Los campos obligatorios no se pueden dejar en blanco: el botón de guardar se deshabilita y se dice cuál falta, en vez de guardar un CV a medio armar.
 - Se trabaja sobre un **borrador local** y se guarda al confirmar: cancelar deshace todo, igual que en el flujo de IA.
 - Los logros se editan en `textarea` de dos líneas, no en `input`: ocupan unos 140 caracteres y en una sola línea no se ve el final de lo que se está corrigiendo.
 - Al guardar, el auditor y la vista previa se recalculan solos porque leen del store.
